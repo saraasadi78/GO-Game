@@ -3,12 +3,10 @@
 #include "board.h"
 #include "stone.h"
 #include"menu.h"
-#include <time.h>
 
 //global variables ========================================================================================================================================
 int save_root, save_stone;
 int i = 0, j = 0;
-FILE *input;
 enum color_stone { Empty, White, Black };
 
 //show massages ============================================================================================================================================
@@ -98,51 +96,17 @@ void mouse_position(float cursor_x, float cursor_y, bool &pass_Pl_1, bool &pass_
 								stone_array[i][j] = -1;
 								turn *= (-1);
 							}
-							for (int m = 0; m < 9; m++)
-							{
-								for (int n = 0; n < 9; n++)
-								{
-									count_lib(stone_array, lib, m, n, flag_lib_2);
-								}
-							}
-							save_root = root[i * width_boarder + j];
-							check_add_group(stone_array, root, save_root, sw_group, i, j);
-							for (int m = 0; m < 9; m++)
-							{
-								for (int n = 0; n < 9; n++)
-								{
-									find_same_root(stone_array, root, sw_fsRoot, lib, m, n);
-								}
-							}
-							for (int m = 0; m < 9; m++)
-							{
-								for (int n = 0; n < 9; n++)
-								{
-									if (lib[m * width_boarder + n] == 0 && stone_array[m][n] != 0)
-									{
-										zeroLib.push_back(m * width_boarder + n);
-									}
-								}
-							}
-							for (int m = 0; m < zeroLib.size(); m++)
-							{
-								stone_array[zeroLib[m] / width_boarder][zeroLib[m] % width_boarder] = 0;
-
-								draw_display(stone_array);
-							}
-							suicide(stone_array, i, j, turn, white_num, black_num);
 							if (turn == 1)
 							{
 								pass_Pl_1 = false;
-								singlePlayer(lib, stone_array, turn, flag_lib_2);
-								al_flip_display();
+								computer_playing(stone_array, lib_flag, turn, com_put_stone);
 							}
 						}
 						for (int m = 0; m < 9; m++)
 						{
 							for (int n = 0; n < 9; n++)
 							{
-								count_lib(stone_array, lib, m, n, flag_lib_2);
+								count_lib(stone_array, lib, lib_flag, m, n);
 							}
 						}
 						save_root = root[i * width_boarder + j];
@@ -167,10 +131,13 @@ void mouse_position(float cursor_x, float cursor_y, bool &pass_Pl_1, bool &pass_
 						for (int m = 0; m < zeroLib.size(); m++)
 						{
 							stone_array[zeroLib[m] / width_boarder][zeroLib[m] % width_boarder] = 0;
-							
+							if (stone_array[zeroLib[m] / width_boarder][zeroLib[m] % width_boarder] == 1)
+								white_num--;
+							else if (stone_array[zeroLib[m] / width_boarder][zeroLib[m] % width_boarder] == -1)
+								black_num--;
 							draw_display(stone_array);
 						}
-						suicide(stone_array, i, j, turn, white_num, black_num);
+						suicide(stone_array, i, j, turn);
 					}
 				}
 			}
@@ -216,22 +183,15 @@ void key_enter(int pos_x, int pos_y, bool &pass_Pl_1, bool &pass_Pl_2, bool one_
 					}
 					if (turn == 1)
 					{
-						/*for (int m = 0; m < 9; m++)
-						{
-							for (int n = 0; n < 9; n++)
-							{
-								count_lib(stone_array, lib, m, n, flag_lib_2);
-							}
-						}*/
 						pass_Pl_1 = false;
-						singlePlayer(lib, stone_array, turn, flag_lib_2);
+						computer_playing(stone_array, lib_flag, turn, com_put_stone);
 					}
 				}
 				for (int m = 0; m < 9; m++)
 				{
 					for (int n = 0; n < 9; n++)
 					{
-						count_lib(stone_array, lib, m, n, flag_lib_2);
+						count_lib(stone_array, lib, lib_flag, m, n);
 					}
 				}
 				save_root = root[i * width_boarder + j];
@@ -256,9 +216,13 @@ void key_enter(int pos_x, int pos_y, bool &pass_Pl_1, bool &pass_Pl_2, bool one_
 				for (int m = 0; m < zeroLib.size(); m++)
 				{
 					stone_array[zeroLib[m] / width_boarder][zeroLib[m] % width_boarder] = 0;
+					if (stone_array[zeroLib[m] / width_boarder][zeroLib[m] % width_boarder] == 1)
+						white_num--;
+					else if (stone_array[zeroLib[m] / width_boarder][zeroLib[m] % width_boarder] == -1)
+						black_num--;
 					draw_display(stone_array);
 				}
-				suicide(stone_array, i, j, turn, white_num, black_num);
+				suicide(stone_array, i, j, turn);
 			}
 		}
 	}
@@ -292,9 +256,6 @@ int main()
 	int stone_array[9][9] = { 0 };
 	float cursor_x = 0;
 	float cursor_y = 0;
-	float white_point = 0;
-	float black_point = 0;
-	//FILE *input;
 	board board_array[9] = { 0 };
 
 
@@ -313,7 +274,7 @@ int main()
 
 	al_reserve_samples(1);
 	
-	// allegro variable =========================================================count
+	// allegro variable =========================================================
 	ALLEGRO_SAMPLE *sample = al_load_sample(musName);
 	ALLEGRO_SAMPLE_INSTANCE *sampleInstance = al_create_sample_instance(sample);
 	ALLEGRO_EVENT_QUEUE *event_queue = al_create_event_queue();
@@ -322,6 +283,7 @@ int main()
  
 	al_set_sample_instance_playmode(sampleInstance, ALLEGRO_PLAYMODE_LOOP);
 	al_attach_sample_instance_to_mixer(sampleInstance, al_get_default_mixer());
+//	al_play_sample_instance(sampleInstance);
 
 	//al_register ================================================================================
 	al_register_event_source(event_queue, al_get_display_event_source(al_get_current_display()));
@@ -330,7 +292,7 @@ int main()
 	al_register_event_source(event_queue, al_get_timer_event_source(timer));
 
 	//menu
-	sara();
+	sara(/*event_queue, one_player, two_players, done,music,sample, sampleInstance,id*/);
 
 
 
@@ -343,65 +305,58 @@ int main()
 	 
 		ALLEGRO_EVENT ev;
 		al_wait_for_event(event_queue, &ev);
-		cursor_x = ev.mouse.x;
-		cursor_y = ev.mouse.y;
+		ALLEGRO_EVENT ev2;
+		al_wait_for_event(event_queue, &ev2);
+		x = ev2.mouse.x;
+		y = ev2.mouse.y;
 		if (menu)
 		{
-			if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE)
+			if (ev2.type == ALLEGRO_EVENT_DISPLAY_CLOSE)
 			{
 				menu = false;
 				done = true;
 				break;
 			}
 
-			else if (ev.type == ALLEGRO_EVENT_MOUSE_BUTTON_UP)
+			else if (ev2.type == ALLEGRO_EVENT_MOUSE_BUTTON_UP)
 			{
 
-				if (cursor_x > 250 && cursor_x < 390 && cursor_y > 250 && cursor_y < 300)
+				if (x > 250 && x < 390 && y > 250 && y < 300)
 				{
 					menu = false;
 					playing = true;
 					one_player = true;
-					two_players = false;
 					draw_display(stone_array);
 				}
-				if (cursor_x > 400 && cursor_x < 550 && cursor_y > 250 && cursor_y < 300)
+				if (x > 400 && x < 550 && y > 250 && y < 280)
 				{
 					menu = false;
 					playing = true;
 					two_players = true;
-					one_player = false;
 					draw_display(stone_array);
 				}
-				if (cursor_x > 250 && cursor_x < 390 && cursor_y > 350 && cursor_y < 400)
+				if (x > 250 && x < 390 && y > 320 && y < 380)
 				{
+					music = true;
+					// playing audio =============================================================================
+					if (music)
+					{
 						al_play_sample(sample, 10, 0, 1, ALLEGRO_PLAYMODE_LOOP, &id);
+					}
+
 				}
 
-				if (cursor_x > 400 && cursor_x < 550 && cursor_y > 350 && cursor_y < 400)
+				if (x > 400 && x < 550 && y > 325 && y < 360)
 				{
-					 al_stop_sample(&id); 
-				}
-				if (cursor_x > 250 && cursor_x < 550 && cursor_y > 450 && cursor_y <500)
-				{
-					input = fopen("save.dat", "rb");
-					fread(&stone_array, sizeof(int), 81, input);
-					fread(&turn, sizeof(int), 1, input);
-					fread(&pass_Pl_1, sizeof(bool), 1, input);
-					fread(&pass_Pl_2, sizeof(bool), 1, input);
-					fread(&two_players, sizeof(bool), 1, input);
-					fread(&one_player, sizeof(bool), 1, input);
-					fclose(input);
-					menu = false;
-					playing = true;
-					draw_display(stone_array);
+					music = false;
+					if (music == false) { al_stop_sample(&id); }
 				}
 
-				if (cursor_x > 250 && cursor_x < 550 && cursor_y > 550 && cursor_y <600)
+				if (x > 250 && x < 550 && y > 500 && y <550)
 				{
 					exit(0);
 				}
-				printf("x=%d   y=%d \n", cursor_x, cursor_y);
+				printf("x=%d   y=%d \n", x, y);
 			}
 		}
 
@@ -440,7 +395,7 @@ int main()
 				{
 					pos_x = 125;
 					pos_y = 125;
-					create_bitmap_keyboard("AX.png", pos_x - 25, pos_y - 25, 50, 50);
+					al_draw_filled_circle(pos_x, pos_y, 20, al_map_rgb(196, 196, 196));
 				}
 			}
 			else if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE)
@@ -453,14 +408,33 @@ int main()
 			}
 			else if (ev.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN)
 			{
-				int timer = time(NULL);
+				cursor_x = ev.mouse.x;
+				cursor_y = ev.mouse.y;
+
 				//putting stones and check capturing ===========================================================
 				mouse_position(cursor_x, cursor_y, pass_Pl_1, pass_Pl_2, one_player, two_players, turn, stone_array, zeroLib, white_num, black_num);
-				printf("%d", timer);
-				if (timer + 30 < time(NULL))
-					turn *= (-1);
-				if (cursor_x > 10 && cursor_x < 100 && cursor_y > 740 && cursor_y < 790)
-					draw_save_button_click();
+				for (int i = 0; i < 9; i++)
+				{
+					for (int j = 0; j < 9; j++)
+					{
+						find_same_root(stone_array, root, sw_fsRoot, lib, i, j);
+					}
+				}
+				for (int i = 0; i < 9; i++)
+				{
+					for (int j = 0; j < 9; j++)
+					{
+						if (lib[i * width_boarder + j] == 0 && stone_array[i][j] != 0)
+						{
+							zeroLib.push_back(i * width_boarder + j);
+						}
+					}
+				}
+				for (int i = 0; i < zeroLib.size(); ++i)
+				{
+					stone_array[zeroLib[i] / width_boarder][zeroLib[i] % width_boarder] = 0;
+					al_draw_filled_circle((zeroLib[i] / width_boarder) * 70 + 125, (zeroLib[i] % width_boarder) * 70 + 125, 25, al_map_rgb(196, 196, 196));
+				}
 			}
 			else if (ev.type == ALLEGRO_EVENT_MOUSE_BUTTON_UP)
 			{
@@ -472,44 +446,31 @@ int main()
 					else if (pass_Pl_2)
 						message_box("Player2 passed", "warning", "warning");
 				}
-				else if (cursor_x > 10 && cursor_x < 100 && cursor_y > 740 && cursor_y < 790)
-				{
-					draw_save_button();
-					input = fopen("save.dat", "wb");
-					if (input == NULL)
-					{
-						printf("can't open file!\n");
-						exit(1);
-					}
-					fwrite(&stone_array, sizeof(int), 81, input);
-					fwrite(&turn, sizeof(int), 1, input);
-					fwrite(&pass_Pl_1, sizeof(bool), 1, input);
-					fwrite(&pass_Pl_2, sizeof(bool), 1, input);
-					fwrite(&two_players, sizeof(bool), 1, input);
-					fwrite(&one_player, sizeof(bool), 1, input);
-					fclose(input);
-				}
+				pass_Pl_1 = false;
+				pass_Pl_2 = false;
+
+				//debugging
 				for (int i = 0; i < 9; i++)
 				{
 					for (int j = 0; j < 9; j++)
 					{
-						printf("%d ", stone_array[j][i]);
+						printf("%d ", lib[j * width_boarder + i]);
 					}
 					printf("\n");
 				}
 				printf("\n");
+				for (int i = 0; i < 9; i++)
+				{
+					for (int j = 0; j < 9; j++)
+					{
+						printf("%d ", root[j * width_boarder + i]);
+					}
+					printf("\n");
+				}
+				printf("\n");
+				zero_lib(lib);
 				zero_array(sw_fsRoot);
 				zero_array(sw_group);
-				if ((pass_Pl_1 && pass_Pl_2) || (white_num == 0 && black_num == 0))
-				{
-					if (counting_points(stone_array, sw_point, white_point, black_point) == 1)
-						message_box("White is winner!", "Result", "The End");
-					else if (counting_points(stone_array, sw_point, white_point, black_point) == -1)
-					{
-						message_box("Black is winner!", "Result", "The End");
-					}
-					done = true;	
-				}
 			}
 			if (redraw && al_is_event_queue_empty(event_queue))
 			{
